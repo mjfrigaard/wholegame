@@ -6,8 +6,9 @@ Code Through - Whole Game (Hadley Wickham)
 ``` r
 knitr::opts_chunk$set(echo = TRUE,  
                       tidy = FALSE,
-                      size = "small",
-                      dev = "cairo_pdf")
+                      size = "small"
+                      #dev = "cairo_pdf"
+                      )
 library(tidyverse)
 library(magrittr)
 library(hrbrthemes)
@@ -188,7 +189,7 @@ permits %>%
     ggplot2::geom_point()
 ```
 
-![](README_files/figure-gfm/point-1.pdf)<!-- -->
+![](README_files/figure-gfm/point-1.png)<!-- -->
 
 Not very useful. Try lines.
 
@@ -198,7 +199,7 @@ permits %>%
     ggplot2::geom_line()
 ```
 
-![](README_files/figure-gfm/line-1.pdf)<!-- -->
+![](README_files/figure-gfm/line-1.png)<!-- -->
 
 Not useful–needs the `group = area`.
 
@@ -208,7 +209,7 @@ permits %>%
     ggplot2::geom_line(aes(group = area))
 ```
 
-![](README_files/figure-gfm/line_grouped-1.pdf)<!-- -->
+![](README_files/figure-gfm/line_grouped-1.png)<!-- -->
 
 > I’m going to limit my plot to 2005 - 2017 to look more like the plot
 > in the video.
@@ -227,7 +228,7 @@ permits %>%
     ggplot2::geom_line(aes(group = area))
 ```
 
-![](README_files/figure-gfm/line_grouped_v2-1.pdf)<!-- -->
+![](README_files/figure-gfm/line_grouped_v2-1.png)<!-- -->
 
 ## Focus
 
@@ -314,7 +315,7 @@ permits_big %>%
     ggplot2::geom_line(aes(group = area))
 ```
 
-![](README_files/figure-gfm/permits_big_line_grouped-1.pdf)<!-- -->
+![](README_files/figure-gfm/permits_big_line_grouped-1.png)<!-- -->
 
 Add the `alpha = 1/10` to see the lines a little clearer…
 
@@ -324,7 +325,7 @@ permits_big %>%
     ggplot2::geom_line(aes(group = area), alpha = 1/10)
 ```
 
-![](README_files/figure-gfm/permits_big_line_grouped_alpha-1.pdf)<!-- -->
+![](README_files/figure-gfm/permits_big_line_grouped_alpha-1.png)<!-- -->
 
 Add the `ggplot2::scale_y_log10()` to reduce the difference in the
 biggest and smallest `big` cities.
@@ -336,7 +337,7 @@ permits_big %>%
       ggplot2::scale_y_log10()
 ```
 
-![](README_files/figure-gfm/permits_big_line_grouped_scale_y_log10-1.pdf)<!-- -->
+![](README_files/figure-gfm/permits_big_line_grouped_scale_y_log10-1.png)<!-- -->
 
 Now we can see a bit of a pattern in the data.
 
@@ -352,7 +353,7 @@ permits_big %>%
 
     ## `geom_smooth()` using method = 'gam' and formula 'y ~ s(x, bs = "cs")'
 
-![](README_files/figure-gfm/geom_smooth-1.pdf)<!-- -->
+![](README_files/figure-gfm/geom_smooth-1.png)<!-- -->
 
 ## Model
 
@@ -379,7 +380,7 @@ houston %>%
     ggplot2::geom_line(aes(group = area))
 ```
 
-![](README_files/figure-gfm/houston_lineplot-1.pdf)<!-- -->
+![](README_files/figure-gfm/houston_lineplot-1.png)<!-- -->
 
 Check this again by putting the `month` on the `x` and `group` = `year`.
 
@@ -390,7 +391,7 @@ houston %>%
       ggplot2::scale_y_log10()
 ```
 
-![](README_files/figure-gfm/group_by_year-1.pdf)<!-- -->
+![](README_files/figure-gfm/group_by_year-1.png)<!-- -->
 
 This shows more building permits earlier in the year than later in the
 year.
@@ -425,7 +426,7 @@ houston %>%
   ggplot2::geom_line()
 ```
 
-![](README_files/figure-gfm/add_predictions-1.pdf)<!-- -->
+![](README_files/figure-gfm/add_predictions-1.png)<!-- -->
 
 The model has captured the seasonal pattern of the permits.
 
@@ -442,7 +443,7 @@ houston %>%
   ggplot2::geom_line()
 ```
 
-![](README_files/figure-gfm/add_residuals-1.pdf)<!-- -->
+![](README_files/figure-gfm/add_residuals-1.png)<!-- -->
 
 Now we can see what the pattern is with the monthly pattern removed.
 
@@ -562,7 +563,7 @@ detrended %>%
 
     ## `geom_smooth()` using method = 'gam' and formula 'y ~ s(x, bs = "cs")'
 
-![](README_files/figure-gfm/plot_detrended-1.pdf)<!-- -->
+![](README_files/figure-gfm/plot_detrended-1.png)<!-- -->
 
 This final plot tells us this pattern affects all cities in the data
 set.
@@ -583,7 +584,7 @@ permits_big %>%
     ggplot2::geom_line(aes(group = area))
 ```
 
-![](README_files/figure-gfm/important_plot-1.pdf)<!-- -->
+![](README_files/figure-gfm/important_plot-1.png)<!-- -->
 
 After the manipulations, log transformations, and adding
 `ggplot2::geom_smooth()`, we can build a model to see how much the

@@ -11,8 +11,9 @@ output: github_document
 ```{r setup, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE,  
                       tidy = FALSE,
-                      size = "small",
-                      dev = "cairo_pdf")
+                      size = "small"
+                      #dev = "cairo_pdf"
+                      )
 library(tidyverse)
 library(magrittr)
 library(hrbrthemes)
