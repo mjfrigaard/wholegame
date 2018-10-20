@@ -1,0 +1,337 @@
+---
+title: "Code Through - Whole Game (Hadley Wickham)"
+# output: hrbrthemes::ipsum_pdf
+output: github_document
+---
+
+
+
+# US building permits
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  
+                      tidy = FALSE,
+                      size = "small",
+                      dev = "cairo_pdf")
+library(tidyverse)
+library(magrittr)
+library(hrbrthemes)
+library(skimr)
+library(Cairo)
+library(extrafont)
+extrafont::loadfonts()
+```
+
+# Import
+
+Download the data from [this site](https://www.recenter.tamu.edu/data/building-permits#!/state/United_States)
+
+```{r import}
+# fs::dir_ls("data")
+permits_raws <- read_csv("data/MSAdataPermit_fullmo.csv")
+permits_raws
+```
+
+* area = metropolitan standard area 
+* date = month / year (character vector, or strings)  
+* f1 = 1 family, f24 = 2-4 families, f5 = 5+ families  
+* units = number of buildings, change in units; value = average value of building; valchange = change in value 
+
+```{r permits}
+permits_raws %>% 
+  tidyr::separate(data = ., 
+                  col = date, 
+                  into = c("month", "year"), 
+                  sep = "/", 
+                  convert = TRUE) %>% head()
+permits <- permits_raws %>% 
+  tidyr::separate(data = ., 
+                  col = date, 
+                  into = c("month", "year"), 
+                  sep = "/", 
+                  convert = TRUE)
+```
+
+## Basic EDA
+
+These are just counts of the categorical data
+
+```{r EDA}
+permits %>% dplyr::count(year) %>% utils::head()
+permits %>% dplyr::count(area) %>% utils::head()
+permits %>% dplyr::count(area) %>% dplyr::count(n)
+```
+
+## Create `date` variable
+
+This will put time on the x-axis. January 2007 will be `2007`, February 2007 with be `2007` plus a little bit more. 
+
+```{r create_date}
+permits <- permits %>% 
+  dplyr::mutate(date = year + (month - 1) / 12)
+permits %>% dplyr::glimpse(78)
+```
+
+First plot with points. 
+
+```{r point}
+permits %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_point()
+```
+
+Not very useful. Try lines.
+
+```{r line}
+permits %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line()
+```
+
+Not useful--needs the `group = area`.
+
+```{r line_grouped}
+permits %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area))
+```
+
+> I'm going to limit my plot to 2005 - 2017 to look more like the plot in the video. 
+
+## Filter data to 2005 - 2017
+
+```{r filter}
+permits <- permits %>% dplyr::filter(date >= 2005 & date <= 2017)
+```
+
+Now do this plot again. 
+
+```{r line_grouped_v2}
+permits %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area))
+```
+
+## Focus 
+
+Focus on big cities. This might bias results (big cities are different than small cities).
+
+```{r f1units}
+f1units <- permits %>% 
+  dplyr::group_by(area) %>% 
+  dplyr::summarise(mean = mean(f1units)) %>% 
+  dplyr::arrange(desc(mean))
+f1units %>% head(10)
+```
+
+Now filter this to those greater than 100 every month. 
+
+```{r 100_mean}
+f1units %>% 
+  # how many cities have a mean f1units over 100?
+  dplyr::filter(mean > 100) %>% 
+  # use this to look at the structure of resulting 116
+  dplyr::glimpse(78)
+```
+
+## Semi join to `permits`
+
+> this is a cool trick to get the cities with a mean > 100 (in `f1units` data frame).
+
+```{r semi_join}
+permits_big <- permits %>% 
+  dplyr::semi_join(x = ., 
+                   # join this to the f1units
+                   y = f1units %>% 
+                     # but filter this to the mean greater than 100
+                     dplyr::filter(mean > 100),
+                   by = "area")
+permits_big %>% dplyr::glimpse(78)
+```
+
+Now redo the plot with `ggplot2::geom_line()` with only big cities. 
+
+```{r permits_big_line_grouped}
+permits_big %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area))
+```
+
+Add the `alpha = 1/10` to see the lines a little clearer...
+
+```{r permits_big_line_grouped_alpha}
+permits_big %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area), alpha = 1/10)
+```
+
+Add the `ggplot2::scale_y_log10()` to reduce the difference in the biggest and smallest `big` cities. 
+
+```{r permits_big_line_grouped_scale_y_log10}
+permits_big %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area), alpha = 1/10) + 
+      ggplot2::scale_y_log10()
+```
+
+Now we can see a bit of a pattern in the data. 
+
+Add a `ggplot2::geom_smooth()` line to see the long term trends.
+
+```{r geom_smooth}
+permits_big %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area), alpha = 1/10) + 
+      ggplot2::scale_y_log10() + 
+        ggplot2::geom_smooth(se = FALSE)
+```
+
+## Model
+
+Models are a great way to partition the signal into a monthly component. 
+
+Start with one city `"Houston"`.
+
+```{r houston}
+houston <- permits %>% dplyr::filter(stringr::str_detect(area, "Houston"))
+houston %>% dplyr::count(area)
+```
+
+Now plot only Houston.
+
+```{r houston_lineplot}
+houston %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area))
+```
+
+Check this again by putting the `month` on the `x` and `group` = `year`. 
+
+```{r group_by_year}
+houston %>% 
+  ggplot2::ggplot(aes(x = month, y = f1units)) + 
+    ggplot2::geom_line(aes(group = year)) + 
+      ggplot2::scale_y_log10()
+```
+
+This shows more building permits earlier in the year than later in the year. 
+
+Questions:
+
+* is this pattern the same everywhere?
+
+* what drives this? is it the weather?
+
+* Houston in July is less pleasant than Houston in December. 
+
+We build a model.
+
+"I don't believe this is a good model, I'm just going to use it to partition this signal into a monthly effect".
+
+```{r linear_model}
+library(modelr)
+houston_mod <- lm(log(f1units) ~ factor(month), data = houston)
+```
+
+## Look at the predictions
+
+Add the predictions to the model with `modelr::add_predictions()`
+
+```{r add_predictions}
+houston %>% 
+  # adds a column of predictions to the model
+  modelr::add_predictions(houston_mod) %>% 
+  ggplot2::ggplot(aes(x = date, y = pred)) + 
+  ggplot2::geom_line()
+```
+
+The model has captured the seasonal pattern of the permits. 
+
+## Look at the residuals
+
+Now look at the residuals or "what remains after we remove the monthly signal" with `modelr::add_residuals()`.
+
+```{r add_residuals}
+houston %>% 
+  # adds a column of predictions to the model
+  modelr::add_residuals(houston_mod) %>% 
+  ggplot2::ggplot(aes(x = date, y = resid)) + 
+  ggplot2::geom_line()
+```
+
+Now we can see what the pattern is with the monthly pattern removed. 
+
+Questions: 
+
+* What is driving this trend?   
+* What happened in 2010?  
+
+## Extend the model to every city
+
+Now use `dplyr`, `tidyr`, and `purrr` to extend the model to every city in the data set. 
+
+The `tidyr::nest()` function works like so:
+
+> `nest()` creates a list of data frames containing all the nested variables: this seems to be the most useful form in practice.
+
+```{r by_area}
+by_area <- permits_big %>% 
+  dplyr::group_by(area) %>% 
+  tidyr::nest()
+by_area %>% utils::head(10)
+```
+
+This dataset has two columns: `area` is a character vector, and `data` is a column that contains a tibble in each row.
+
+```{r first_tibble}
+by_area %>% 
+  dplyr::select(data) %>% 
+  utils::head(1) %>% 
+  utils::str() 
+```
+
+`area_model` is the function we will build to extend the model.
+
+```{r area_model}
+area_model <- function(df) {
+  lm(log10(f1units + 1) ~ factor(x = month), data = df)
+}
+```
+
+Now we use `purrr::map()` and `purrr::map2()` to extend the model function to each tibble in the `by_area` data frame. 
+
+```{r detrended}
+detrended <- by_area %>% dplyr::mutate(
+  model = purrr::map(.x = data, .f = area_model),
+  # add_residuals is from modelr
+  resids = purrr::map2(.x = data, .y = model, .f = add_residuals)
+) %>% tidyr::unnest(resids)
+detrended %>% glimpse(78)
+```
+
+Now we plot the new model data in `resid` column.
+
+```{r plot_detrended}
+detrended %>% 
+  ggplot2::ggplot(aes(x = date, y = resid)) + 
+    ggplot2::geom_line(aes(group = area), alpha = 1/10) + 
+        ggplot2::geom_smooth(se = FALSE)
+```
+
+This final plot tells us this pattern affects all cities in the data set. 
+
+## Final thoughts 
+
+1. Great problem solving strategy: You have a big problem to solve, start with one small piece (Houston), solve it, then generalize this to the rest of the problem.
+
+2. The entire analysis was motivated by this plot:
+
+```{r important_plot}
+permits_big %>% 
+  ggplot2::ggplot(aes(x = date, y = f1units)) + 
+    ggplot2::geom_line(aes(group = area))
+```
+
+After the manipulations, log transformations, and adding `ggplot2::geom_smooth()`, we can build a model to see how much the seasonal pattern contributes to the overall variation. 
+
+
